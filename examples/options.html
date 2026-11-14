@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Brainstorm: where to cache report results</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1c2330; --muted: #5d6878; --line: #dfe3ea;
+    --accent: #2456d6; --accent-soft: #e8eefc; --good: #14804a; --good-soft: #e3f5ea;
+    --warn: #9a5b00; --warn-soft: #fdf0d9; --bad: #b3261e; --bad-soft: #fbe9e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --panel: #1b2029; --text: #e6e9ef; --muted: #9aa5b5; --line: #2e3542;
+      --accent: #7da2ff; --accent-soft: #1f2b47; --good: #5fd092; --good-soft: #173324;
+      --warn: #f0b660; --warn-soft: #3a2c12; --bad: #ff8a80; --bad-soft: #40201d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 24px 60px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  article h2 { font-size: 17px; margin: 0; }
+  p { margin: 0 0 10px; }
+  .problem { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; margin-bottom: 16px; }
+  .problem p { color: var(--muted); max-width: 72ch; margin: 0; }
+  .goal { display: flex; gap: 10px; }
+  .goal div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; text-align: center; }
+  .goal b { display: block; font-size: 18px; }
+  .goal span { font-size: 12px; color: var(--muted); }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+  article { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  article.pick { border: 2px solid var(--accent); }
+  .head { display: flex; align-items: center; gap: 8px; }
+  .letter { width: 28px; height: 28px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; }
+  .badge { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; }
+  /* small architecture diagrams */
+  .diagram { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; min-height: 84px; }
+  .box { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 4px 8px; text-align: center; }
+  .box.hot { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .stack { display: grid; gap: 4px; }
+  .arr { color: var(--muted); }
+  dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-weight: 600; }
+  .meter { display: inline-flex; gap: 3px; vertical-align: middle; margin-right: 6px; }
+  .meter i { width: 9px; height: 9px; border-radius: 2px; background: var(--line); }
+  .meter i.on { background: var(--accent); }
+  .fit, .risk { font-size: 14px; border-radius: 8px; padding: 8px 10px; }
+  .fit { background: var(--good-soft); }
+  .fit b { color: var(--good); }
+  .risk { background: var(--bad-soft); }
+  .risk b { color: var(--bad); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  thead th { color: var(--muted); font-size: 13px; }
+  tbody th { font-weight: 500; color: var(--muted); }
+  td.yes { color: var(--good); font-weight: 600; }
+  td.no { color: var(--bad); font-weight: 600; }
+  td.mid { color: var(--warn); font-weight: 600; }
+  col.pick { background: var(--accent-soft); }
+  .rec { border-left: 4px solid var(--accent); }
+  ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  @media (max-width: 860px) { .cards, .problem { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Where to cache report results</h1>
+    <div class="problem">
+      <p>The Reports page runs the same aggregate query every time it loads, and the query takes 4 to 9 seconds on the production database. Most users open the page several times a day with the same filters. Data that is up to 15 minutes old is acceptable.</p>
+      <div class="goal" role="group" aria-label="Current and target load times">
+        <div><b>4 to 9 s</b><span>today</span></div>
+        <div><b>under 1 s</b><span>goal, repeated views</span></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="cards">
+    <article aria-labelledby="opt-a">
+      <div class="head"><span class="letter">A</span><h2 id="opt-a">In-memory, per process</h2></div>
+      <div class="diagram" role="img" aria-label="Eight server processes, each with its own cache, in front of one database">
+        <div class="stack"><div class="box hot">process + cache</div><div class="box hot">process + cache</div><div class="box">… 8 in total</div></div>
+        <span class="arr">→</span><div class="box">database</div>
+      </div>
+      <p>A map inside each web server process, keyed by the filter values, with a 15-minute expiry.</p>
+      <dl>
+        <dt>Effort</dt><dd><span class="meter"><i class="on"></i><i></i><i></i><i></i></span>1 day</dd>
+        <dt>Repeated view</dt><dd>5 ms, if the process has it</dd>
+        <dt>First view</dt><dd>4 to 9 s</dd>
+      </dl>
+      <div class="fit"><b>Fits because:</b> no new infrastructure, and it can ship in a day.</div>
+      <div class="risk"><b>Risk:</b> a user can see totals change between page loads, because each process holds a different copy.</div>
+    </article>
+
+    <article class="pick" aria-labelledby="opt-b">
+      <div class="head"><span class="letter">B</span><h2 id="opt-b">Shared Redis cache</h2><span class="badge">Recommended</span></div>
+      <div class="diagram" role="img" aria-label="Eight server processes sharing one Redis cache in front of one database">
+        <div class="stack"><div class="box">process</div><div class="box">process</div><div class="box">… 8 in total</div></div>
+        <span class="arr">→</span><div class="box hot">Redis</div><span class="arr">→</span><div class="box">database</div>
+      </div>
+      <p>Results stored in Redis, keyed by a hash of the filter values, with a 15-minute expiry. All processes read the same entry.</p>
+      <dl>
+        <dt>Effort</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i></span>3 days</dd>
+        <dt>Repeated view</dt><dd>20 ms</dd>
+        <dt>First view</dt><dd>4 to 9 s</dd>
+      </dl>
+      <div class="fit"><b>Fits because:</b> one consistent answer for every process, and Redis is already used for sessions.</div>
+      <div class="risk"><b>Risk:</b> results over 5 MB are slow to serialize, and a Redis outage must fall back to the direct query.</div>
+    </article>
+
+    <article aria-labelledby="opt-c">
+      <div class="head"><span class="letter">C</span><h2 id="opt-c">Precomputed summary table</h2></div>
+      <div class="diagram" role="img" aria-label="A scheduled job fills a summary table every 15 minutes; server processes read only the summary table">
+        <div class="stack"><div class="box">processes</div><div class="box">job, every 15 min</div></div>
+        <span class="arr">→</span><div class="box hot">summary table</div>
+      </div>
+      <p>A scheduled job writes daily totals into a summary table every 15 minutes. The page never runs the aggregate query.</p>
+      <dl>
+        <dt>Effort</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>8 days</dd>
+        <dt>Repeated view</dt><dd>80 ms</dd>
+        <dt>First view</dt><dd>80 ms</dd>
+      </dl>
+      <div class="fit"><b>Fits because:</b> every view is fast, including the first, and production database load drops.</div>
+      <div class="risk"><b>Risk:</b> every new filter needs a schema change, and a bug in the job produces wrong totals that look correct.</div>
+    </article>
+  </div>
+
+  <section aria-labelledby="h-cmp">
+    <h2 id="h-cmp">Comparison</h2>
+    <table>
+      <colgroup><col><col><col class="pick"><col></colgroup>
+      <thead><tr><th scope="col">Criterion</th><th scope="col">A: in-memory</th><th scope="col">B: Redis (recommended)</th><th scope="col">C: summary table</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Effort</th><td class="yes">1 day</td><td class="yes">3 days</td><td class="mid">8 days</td></tr>
+        <tr><th scope="row">Repeated view</th><td class="yes">5 ms</td><td class="yes">20 ms</td><td class="yes">80 ms</td></tr>
+        <tr><th scope="row">First view</th><td class="no">4 to 9 s</td><td class="no">4 to 9 s</td><td class="yes">80 ms</td></tr>
+        <tr><th scope="row">Same numbers for everyone</th><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><th scope="row">New infrastructure</th><td class="yes">None</td><td class="yes">None</td><td class="mid">Scheduled job, new table</td></tr>
+        <tr><th scope="row">Cost of adding a filter</th><td class="yes">None</td><td class="yes">None</td><td class="no">Schema change</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="rec" aria-labelledby="h-rec">
+    <h2 id="h-rec">Recommendation: option B</h2>
+    <p>It meets the 1-second goal for repeated views, gives every user the same numbers, and uses infrastructure we already run. Option A is faster to build but shows inconsistent totals. Option C is the only one that fixes the first view, and it is worth revisiting if first-view time becomes the main complaint.</p>
+  </section>
+
+  <section aria-labelledby="h-chg">
+    <h2 id="h-chg">What would change this recommendation</h2>
+    <ul>
+      <li>If more than half of page loads are first views, choose C.</li>
+      <li>If results are regularly larger than 5 MB, choose C.</li>
+      <li>If this is needed before the end of the week, ship A and replace it with B.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

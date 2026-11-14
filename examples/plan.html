@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Plan: CSV export for the Reports page</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1c2330; --muted: #5d6878; --line: #dfe3ea;
+    --accent: #2456d6; --accent-soft: #e8eefc; --new: #14804a; --new-soft: #e3f5ea;
+    --chg: #9a5b00; --chg-soft: #fdf0d9; --bad: #b3261e; --bad-soft: #fbe9e7; --code: #f1f3f7; --on-accent: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --panel: #1b2029; --text: #e6e9ef; --muted: #9aa5b5; --line: #2e3542;
+      --accent: #7da2ff; --accent-soft: #1f2b47; --new: #5fd092; --new-soft: #173324;
+      --chg: #f0b660; --chg-soft: #3a2c12; --bad: #ff8a80; --bad-soft: #40201d; --code: #232a36; --on-accent: #0f1524;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  .layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); max-width: 1240px; margin: 0 auto; }
+  nav { position: sticky; top: 0; align-self: start; padding: 24px 12px 24px 20px; height: 100vh; border-right: 1px solid var(--line); }
+  nav strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+  nav a { display: block; padding: 5px 8px; border-radius: 6px; color: var(--text); text-decoration: none; font-size: 14px; }
+  nav a:hover { background: var(--accent-soft); color: var(--accent); }
+  main { padding: 24px 28px 60px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  p { margin: 0 0 10px; }
+  .lede { color: var(--muted); max-width: 70ch; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0 20px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  .two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+  .two section { margin-bottom: 16px; }
+  /* interface mockup */
+  .mock { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 13px; position: relative; background: var(--bg); padding-bottom: 76px; }
+  .mock-bar { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--muted); white-space: nowrap; }
+  .btn { margin-left: auto; background: var(--accent); color: var(--on-accent); border-radius: 6px; padding: 4px 12px; font-weight: 600; white-space: nowrap; outline: 3px solid var(--accent-soft); }
+  .mock table { width: 100%; border-collapse: collapse; }
+  .mock th, .mock td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+  .mock th { color: var(--muted); font-weight: 600; }
+  .mock td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .toast { position: absolute; right: 10px; bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); width: 210px; }
+  .bar { height: 5px; border-radius: 3px; background: var(--line); margin-top: 6px; }
+  .bar i { display: block; height: 100%; width: 62%; border-radius: 3px; background: var(--accent); }
+  .note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  /* data flow */
+  .flow { display: grid; gap: 6px; }
+  .node { border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; background: var(--bg); }
+  .node b { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .node span { display: block; color: var(--muted); font-size: 13px; }
+  .arrow { text-align: center; color: var(--muted); line-height: 1; }
+  ol, ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  code, pre { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code); padding: 12px 14px; border-radius: 8px; overflow-x: auto; margin: 0; }
+  .tree { list-style: none; padding: 0; }
+  .tree li { display: grid; grid-template-columns: 250px 76px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .tree li:last-child { border-bottom: 0; }
+  .tag { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 9px; text-align: center; }
+  .tag.new { color: var(--new); background: var(--new-soft); }
+  .tag.chg { color: var(--chg); background: var(--chg-soft); }
+  .steps { list-style: none; padding: 0; counter-reset: s; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .steps li:last-child { border-bottom: 0; }
+  .steps li::before { content: counter(s); width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; }
+  .check { color: var(--muted); }
+  .check b { color: var(--new); }
+  table.risks { width: 100%; border-collapse: collapse; }
+  table.risks th, table.risks td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.risks th { color: var(--muted); font-size: 13px; }
+  .lvl { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 9px; }
+  .lvl.high { color: var(--bad); background: var(--bad-soft); }
+  .lvl.med { color: var(--chg); background: var(--chg-soft); }
+  .lvl.low { color: var(--new); background: var(--new-soft); }
+  .questions li { padding: 4px 0; }
+  @media (max-width: 860px) { .layout, .two, .stats { grid-template-columns: 1fr; } nav { display: none; } .steps li, .tree li { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav aria-label="Sections">
+    <strong>Plan</strong>
+    <a href="#overview">Overview</a>
+    <a href="#requirements">Requirements</a>
+    <a href="#files">File structure</a>
+    <a href="#interfaces">Interfaces</a>
+    <a href="#steps">Steps and checks</a>
+    <a href="#risks">Risks</a>
+    <a href="#questions">Open questions</a>
+  </nav>
+  <main>
+    <header id="overview">
+      <h1>CSV export for the Reports page</h1>
+      <p class="lede">Add an "Export CSV" button to the Reports page. The export runs on the server, streams rows instead of loading them into memory, and uses the filters the user has applied.</p>
+      <div class="stats">
+        <div class="stat"><b>6 files</b><span>4 new, 2 changed</span></div>
+        <div class="stat"><b>6 steps</b><span>each with a check</span></div>
+        <div class="stat"><b>1,000,000</b><span>row limit per export</span></div>
+        <div class="stat"><b>None</b><span>database migrations</span></div>
+      </div>
+    </header>
+
+    <div class="two">
+      <section aria-labelledby="h-mock">
+        <h2 id="h-mock">What the user sees</h2>
+        <div class="mock" role="img" aria-label="Mockup of the Reports page with an Export CSV button in the toolbar and a progress notice at the bottom right">
+          <div class="mock-bar">
+            <span class="chip">Jan 1 to Mar 31</span><span class="chip">Region: West</span><span class="chip">Status: Paid</span>
+            <span class="btn">Export CSV</span>
+          </div>
+          <table>
+            <tr><th>Date</th><th>Customer</th><th>Region</th><th style="text-align:right">Amount</th></tr>
+            <tr><td>2026-03-31</td><td>Alder Supply</td><td>West</td><td class="n">1,240.00</td></tr>
+            <tr><td>2026-03-30</td><td>Birch &amp; Co</td><td>West</td><td class="n">318.50</td></tr>
+            <tr><td>2026-03-30</td><td>Cedar Works</td><td>West</td><td class="n">2,905.75</td></tr>
+            <tr><td>2026-03-29</td><td>Dogwood Labs</td><td>West</td><td class="n">76.00</td></tr>
+            <tr><td>2026-03-28</td><td>Elm Street Foods</td><td>West</td><td class="n">540.20</td></tr>
+          </table>
+          <div class="toast"><b>Preparing export…</b><br>310,000 rows<div class="bar"><i></i></div></div>
+        </div>
+        <p class="note">New: the highlighted button and the notice. The notice becomes "Export ready" with a Download link, or shows the failure reason with a Retry button.</p>
+      </section>
+
+      <section aria-labelledby="h-flow">
+        <h2 id="h-flow">Data flow</h2>
+        <div class="flow">
+          <div class="node"><b>ExportButton</b><span>sends filters, visible columns, and sort order</span></div>
+          <div class="arrow">↓</div>
+          <div class="node"><b>POST /api/reports/export</b><span>checks <code>reports:read</code>, creates a job, returns its id</span></div>
+          <div class="arrow">↓</div>
+          <div class="node"><b>csvStream</b><span>writes rows to a temporary file, 5,000 at a time</span></div>
+          <div class="arrow">↓ polled once per second</div>
+          <div class="node"><b>GET …/export/:id/download</b><span>returns the file as <code>text/csv</code></span></div>
+        </div>
+      </section>
+    </div>
+
+    <section id="requirements" aria-labelledby="h-req">
+      <h2 id="h-req">Requirements</h2>
+      <ol>
+        <li>The export contains exactly the rows the current filters select, in the current sort order.</li>
+        <li>Columns match the visible table columns, with the same header labels.</li>
+        <li>Exports of up to 1,000,000 rows complete without the server holding all rows in memory.</li>
+        <li>The user sees progress and can keep using the page while the export runs.</li>
+        <li>Only users with the <code>reports:read</code> permission can export.</li>
+        <li>Dates are written as ISO 8601 in UTC. Amounts are written as plain decimals with no currency symbol.</li>
+      </ol>
+    </section>
+
+    <section id="files" aria-labelledby="h-files">
+      <h2 id="h-files">File structure</h2>
+      <ul class="tree">
+        <li><code>src/reports/ReportsPage.tsx</code><span class="tag chg">changed</span><span>Add ExportButton to the toolbar</span></li>
+        <li><code>src/reports/ExportButton.tsx</code><span class="tag new">new</span><span>Button, notice, download link</span></li>
+        <li><code>src/reports/useExport.ts</code><span class="tag new">new</span><span>Starts the job and polls its status</span></li>
+        <li><code>server/routes/reports.ts</code><span class="tag chg">changed</span><span>Three new routes</span></li>
+        <li><code>server/export/csvStream.ts</code><span class="tag new">new</span><span>Turns a row cursor into CSV text</span></li>
+        <li><code>server/export/csvStream.test.ts</code><span class="tag new">new</span><span>Escaping, dates, large inputs</span></li>
+      </ul>
+    </section>
+
+    <section id="interfaces" aria-labelledby="h-int">
+      <h2 id="h-int">Interfaces</h2>
+<pre><code>type ExportRequest = {
+  filters: ReportFilters;
+  columns: string[];
+  sort: { column: string; direction: "asc" | "desc" };
+};
+
+type ExportJob = {
+  id: string;
+  status: "queued" | "running" | "done" | "failed";
+  rowCount: number;
+  error?: string;
+};</code></pre>
+    </section>
+
+    <section id="steps" aria-labelledby="h-steps">
+      <h2 id="h-steps">Steps and checks</h2>
+      <ol class="steps">
+        <li><span>Write <code>csvStream.ts</code> and its tests.</span><span class="check"><b>Check:</b> tests pass for commas, quotes, line breaks, and empty values inside fields.</span></li>
+        <li><span>Add <code>POST /api/reports/export</code>.</span><span class="check"><b>Check:</b> a request without <code>reports:read</code> returns 403; a valid request returns a job id.</span></li>
+        <li><span>Add the status and download routes.</span><span class="check"><b>Check:</b> the status route reports a rising <code>rowCount</code>; the download route returns <code>text/csv</code>.</span></li>
+        <li><span>Write <code>useExport.ts</code>.</span><span class="check"><b>Check:</b> the hook stops polling when the status is <code>done</code> or <code>failed</code>.</span></li>
+        <li><span>Write <code>ExportButton.tsx</code> and add it to <code>ReportsPage.tsx</code>.</span><span class="check"><b>Check:</b> the button is disabled while an export is running.</span></li>
+        <li><span>Run a 1,000,000-row export against the staging database.</span><span class="check"><b>Check:</b> server memory stays under 300 MB and the file opens in a spreadsheet program.</span></li>
+      </ol>
+    </section>
+
+    <section id="risks" aria-labelledby="h-risks">
+      <h2 id="h-risks">Risks</h2>
+      <table class="risks">
+        <thead><tr><th>Risk</th><th>Likelihood</th><th>Effect</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>A field value starts with <code>=</code>, <code>+</code>, <code>-</code>, or <code>@</code></td><td><span class="lvl high">High</span></td><td>A spreadsheet program runs it as a formula</td><td>Prefix those values with a single quote</td></tr>
+          <tr><td>A long export holds a database connection</td><td><span class="lvl med">Medium</span></td><td>Other requests slow down</td><td>Use the read replica and a 5-minute timeout</td></tr>
+          <tr><td>Filters change while an export runs</td><td><span class="lvl med">Medium</span></td><td>The user expects the new filters</td><td>The notice shows the filters the export used</td></tr>
+          <tr><td>Temporary files fill the disk</td><td><span class="lvl low">Low</span></td><td>Later exports fail</td><td>Delete files after 1 hour; cap total size at 5 GB</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="questions" aria-labelledby="h-q">
+      <h2 id="h-q">Open questions</h2>
+      <ol class="questions">
+        <li>Should the file name include the date range, for example <code>reports-2026-01-01-to-2026-03-31.csv</code>?</li>
+        <li>Is a 1,000,000-row limit acceptable, or should larger exports be sent by email?</li>
+        <li>Should exports be recorded in the audit log?</li>
+      </ol>
+    </section>
+  </main>
+</div>
+</body>
+</html>
