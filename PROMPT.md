@@ -13,7 +13,7 @@ I want you to install a standing instruction on this machine that makes coding a
 
 Write documents meant for me to read as HTML, not Markdown. This covers plans, specs, design docs, brainstorms and option comparisons, reports, research findings, reviews, status files, handoffs, roadmaps, and standalone documentation. I stop reading long Markdown, and I need to review this material before work continues. A chat reply of these kinds that would run past about one screen is also written as an HTML file, with a short summary and the file path in chat.
 
-Keep Markdown where something requires it: files a tool loads by name or format (CLAUDE.md, AGENTS.md, SKILL.md, memory files), README.md and CHANGELOG.md, files a skill tells you to write as .md for another agent to execute, and repositories that already keep their docs in Markdown.
+Keep Markdown where something requires it: files a tool loads by name or format (CLAUDE.md, AGENTS.md, SKILL.md, memory files), README.md and CHANGELOG.md, files a skill tells you to write as .md for another agent to execute, and additions to an existing set of Markdown documentation in a repository.
 
 Each HTML document is one self-contained file: CSS and JavaScript embedded, no remote dependencies unless needed, and plain semantic markup so a later agent can read and edit it. Save it where the Markdown file would have gone, with an .html extension, and open it in my default browser when you can. Do not publish it to a hosted service unless I ask. Use mockups, diagrams, code excerpts, tabs, or whatever else helps me understand and check the content; the layout is your call. When a section is awkward to edit by hand, offer a small throwaway editor page with a copy button that exports the result for pasting back.
 <!-- rule:end -->
@@ -106,7 +106,7 @@ Ask whether I also want the companion skill. Explain that the rule works without
 If I say yes, get the file from `https://raw.githubusercontent.com/nathanphelps/cc-html-output-mod/main/skills/html-documents/SKILL.md`, or from a local copy of the repository if I point you to one. Show me its contents before saving it. Then save it for the tools I selected in step 2:
 
 - Claude Code: `~/.claude/skills/html-documents/SKILL.md`
-- Codex: `html-documents/SKILL.md` inside Codex's user-level skills folder. Current Codex documentation names `~/.agents/skills/`, and older versions used `~/.codex/skills/`. Check which one my version uses, and tell me which you chose.
+- Codex: `~/.agents/skills/html-documents/SKILL.md`, the folder Codex's documentation names. If I already keep my Codex skills in `~/.codex/skills/`, which Codex also reads, ask me which folder to use.
 
 If a skill with that name already exists, ask before replacing it.
 

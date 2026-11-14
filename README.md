@@ -34,7 +34,7 @@ This repository turns that practice into an instruction you install once, so you
 - Files a tool loads by name or format: `CLAUDE.md`, `AGENTS.md`, `SKILL.md`, memory files
 - `README.md` and `CHANGELOG.md`, which code hosts render as formatted pages
 - Files a skill tells the agent to write as `.md` for another agent to execute
-- Any repository that already keeps its docs in Markdown
+- Additions to an existing set of Markdown documentation in a repository
 
 Short answers in chat are not affected.
 
@@ -144,7 +144,7 @@ The rule works without the skill. Install the skill if you want more consistent 
 To install it, copy the `html-documents` folder into the skills folder of each tool you use:
 
 - Claude Code: `~/.claude/skills/html-documents/SKILL.md`
-- Codex: `html-documents/SKILL.md` inside Codex's user-level skills folder. Current Codex documentation names `~/.agents/skills/`; older versions used `~/.codex/skills/`
+- Codex: `~/.agents/skills/html-documents/SKILL.md`, the folder Codex's documentation names. Codex 0.167.2 was also observed loading skills from `~/.codex/skills/`
 
 The skill is written for this repository. The practices it describes come from the episode, and the "How I AI" site has its own write-up of each one: [HTML project plans](https://www.chatprd.ai/how-i-ai/workflows/create-interactive-html-project-plans-with-ai-for-better-visualization), [disposable editors](https://www.chatprd.ai/how-i-ai/workflows/build-disposable-micro-apps-with-ai-to-edit-complex-plans), and [a living design system](https://www.chatprd.ai/how-i-ai/workflows/generate-a-living-html-design-system-with-ai-for-ui-consistency).
 
@@ -154,7 +154,7 @@ The skill is written for this repository. The practices it describes come from t
 - **Harder to edit by hand.** In practice you ask the agent to make changes, or use a throwaway editor page for structured sections.
 - **A well-designed page can make weak reasoning look finished.** The format helps you read the plan. Checking whether the plan is right is still your job.
 - **It is an instruction, not an enforcement mechanism.** Agents follow it most of the time. If one writes Markdown anyway, ask it to redo the document as HTML.
-- **Code hosts show `.html` files as source.** That is why READMEs and existing Markdown docs are excluded.
+- **Code hosts show `.html` files as source.** That is why READMEs and additions to existing Markdown documentation are excluded.
 
 ## Uninstall
 
