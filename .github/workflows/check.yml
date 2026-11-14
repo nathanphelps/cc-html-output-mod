@@ -1,0 +1,52 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main, plugin-marketplace]
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Every manifest and hooks file is valid JSON
+        run: |
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json \
+                   .codex-plugin/plugin.json .agents/plugins/marketplace.json hooks/*.json; do
+            jq empty "$f" && echo "ok   $f"
+          done
+      - name: Claude Code manifests have no version field
+        # Without a version, Claude Code treats each commit as an update.
+        # See CONTRIBUTING.md.
+        run: |
+          jq -e 'has("version") | not' .claude-plugin/plugin.json
+          jq -e '[.plugins[] | has("version")] | any | not' .claude-plugin/marketplace.json
+      - name: The rule in PROMPT.md matches html-output-rule.md
+        run: bash tests/check-rule-sync.sh
+
+  hook:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Hook prints the right file under every launcher
+        shell: bash
+        run: bash tests/test-hook.sh
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate the plugin and marketplace manifests
+        # Not --strict: the missing version field is reported as a warning
+        # and is intended.
+        run: claude plugin validate .
