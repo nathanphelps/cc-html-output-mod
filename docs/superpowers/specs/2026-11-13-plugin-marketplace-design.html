@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design: plugin and marketplace for Claude Code and Codex</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --panel: #ffffff; --text: #1c1d1f; --muted: #5d6168; --line: #dcdcd6;
+    --accent: #2b5fb8; --new: #1f7a45; --changed: #9a5b00; --same: #5d6168; --warn-bg: #fff6e0; --code-bg: #f1f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17181a; --panel: #1f2023; --text: #e9e9e6; --muted: #a2a6ad; --line: #36383d;
+      --accent: #8db4ff; --new: #6fd197; --changed: #f0b458; --same: #a2a6ad; --warn-bg: #3a2f14; --code-bg: #26282c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 28px 20px 80px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  h2 { font-size: 1.25rem; margin: 44px 0 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 20px 0 6px; }
+  p { margin: 8px 0; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  nav { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .9rem; margin-bottom: 18px; }
+  a { color: var(--accent); }
+  code, pre { font-family: ui-monospace, Consolas, monospace; font-size: .88em; background: var(--code-bg); border-radius: 4px; }
+  code { padding: 1px 5px; }
+  pre { padding: 12px 14px; overflow-x: auto; line-height: 1.45; margin: 8px 0; }
+  pre code { padding: 0; background: none; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .tile, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .tile b { display: block; font-size: 1.05rem; }
+  .tile span { color: var(--muted); font-size: .9rem; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+  .card h3 { margin-top: 0; }
+  .picked { border: 2px solid var(--accent); }
+  .tag { display: inline-block; font-size: .72rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+    padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; }
+  .new { color: var(--new); } .changed { color: var(--changed); } .same { color: var(--same); }
+  .mine { color: var(--accent); } .yours { color: var(--new); }
+  table { border-collapse: collapse; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; font-size: .93rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  .scroll { overflow-x: auto; }
+  .note { background: var(--warn-bg); border-left: 4px solid var(--changed); padding: 10px 14px; border-radius: 4px; margin: 12px 0; }
+  figure { margin: 12px 0; }
+  figcaption { color: var(--muted); font-size: .88rem; margin-top: 6px; }
+  svg text { fill: var(--text); font: 13px system-ui, sans-serif; }
+  svg .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  svg .hl { stroke: var(--accent); stroke-width: 2; }
+  svg .arr { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#a); }
+  svg .small { fill: var(--muted); font-size: 11.5px; }
+  ul { padding-left: 20px; margin: 6px 0; }
+  li { margin: 3px 0; }
+  @media print { nav { display: none; } body { background: #fff; } h2 { break-after: avoid; } .card, .tile, table, pre { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Design: plugin and marketplace for Claude Code and Codex</h1>
+<p class="sub">cc-html-output-mod · 2026-11-13 · status: awaiting approval · nothing has been built</p>
+
+<nav aria-label="Sections">
+  <a href="#intent">Intent</a><a href="#user">What the user sees</a><a href="#flow">How the rule arrives</a>
+  <a href="#approaches">Approaches</a><a href="#files">Files</a><a href="#behavior">Behavior</a>
+  <a href="#calls">Decisions and my calls</a><a href="#verify">Checks</a><a href="#open">Unverified facts</a><a href="#builder">Left to the builder</a>
+</nav>
+
+<section class="tiles" aria-label="Summary">
+  <div class="tile"><b>1 repo, 2 tools</b><span>The repo is the plugin and the marketplace for both Claude Code and Codex</span></div>
+  <div class="tile"><b>Rule delivered by a hook</b><span>A session-start hook prints the rule; nothing is written to the user's instruction files</span></div>
+  <div class="tile"><b>1 override file</b><span>A user's own rule text replaces the default when present</span></div>
+  <div class="tile"><b>Rule and skill text unchanged</b><span>This work is packaging, docs, and a CI check</span></div>
+</section>
+
+<h2 id="intent">Intent</h2>
+<p>Today a person installs this project by pasting <code>PROMPT.md</code> into a session or by copying files. Nathan wants three things the current route does not give (his words: "easier install and automatic updates as I develop it, and also allow community contributions"):</p>
+<ul>
+  <li><strong>Easier install:</strong> add a marketplace, install a plugin.</li>
+  <li><strong>Updates that reach users</strong> as the rule and skill change.</li>
+  <li><strong>Community contributions:</strong> a repo layout and checks that let other people send changes.</li>
+</ul>
+<div class="cols">
+  <div class="card"><h3>Goals</h3><ul>
+    <li>Installable from this GitHub repo on Claude Code and on Codex</li>
+    <li>The rule is active in every session after install, without editing <code>CLAUDE.md</code> or <code>AGENTS.md</code></li>
+    <li>A change to the rule or skill on <code>main</code> reaches installed users through the tool's plugin update</li>
+    <li>The offline/CDN choice and rewording remain possible</li>
+    <li>Removing the plugin removes everything it added</li>
+    <li>The existing paste-the-prompt and by-hand routes keep working</li>
+  </ul></div>
+  <div class="card"><h3>Non-goals</h3><ul>
+    <li>Other agents (Cursor, Gemini, and so on)</li>
+    <li>Submission to Anthropic's or OpenAI's public plugin directories. Codex's directory does not accept plugins with hooks</li>
+    <li>Changing the rule's wording or the skill's content</li>
+    <li>Detecting or removing a rule the user already pasted</li>
+    <li>A configuration interview inside the plugin</li>
+  </ul></div>
+  <div class="card"><h3>Would make this a failure</h3><ul>
+    <li>The hook prints an error, or noticeably delays session start, on any of Windows, macOS, Linux</li>
+    <li>The hook fails on Windows when Git Bash is not installed</li>
+    <li>An existing paste install stops working</li>
+    <li>The rule text exists in two files in the repo that can drift apart unnoticed</li>
+  </ul></div>
+</div>
+
+<h2 id="user">What the user sees</h2>
+<div class="cols">
+  <figure class="card"><h3>Claude Code</h3>
+<pre><code>claude plugin marketplace add nathanphelps/cc-html-output-mod
+claude plugin install html-output@nathanphelps</code></pre>
+    <p>Optional, once: <code>/plugin</code> → Marketplaces → nathanphelps → Enable auto-update. Without it: <code>claude plugin update html-output@nathanphelps</code>.</p>
+    <figcaption>Install commands for Claude Code. Auto-update is off by default for marketplaces that are not Anthropic's.</figcaption></figure>
+  <figure class="card"><h3>Codex</h3>
+<pre><code>codex plugin marketplace add nathanphelps/cc-html-output-mod
+codex plugin add html-output@nathanphelps</code></pre>
+    <p>Then, once, in a Codex session: <code>/hooks</code>, review and trust the plugin's hook. Codex skips plugin hooks until this is done. Update with <code>codex plugin marketplace upgrade nathanphelps</code>.</p>
+    <figcaption>Install commands for Codex. The trust step is required by Codex and cannot be removed.</figcaption></figure>
+  <figure class="card"><h3>Changing the rule (either tool)</h3>
+<pre><code>~/.config/html-documents/rule.md</code></pre>
+    <p>If this file exists and is not empty, its content is used in place of the plugin's rule. The README tells the user to copy <code>html-output-rule.md</code> there and edit it, and gives the CDN sentence to swap in.</p>
+    <figcaption>The override file. On Windows, <code>~</code> is the user profile folder.</figcaption></figure>
+</div>
+
+<h2 id="flow">How the rule arrives</h2>
+<figure>
+<svg viewBox="0 0 980 190" role="img" aria-label="Flow: a session starts, the tool runs the plugin's hook, the hook prints the override file if it exists and otherwise the plugin's rule file, and the tool adds that text to the session's instructions." style="width:100%;height:auto">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+  <rect class="box" x="10" y="60" width="150" height="64" rx="6"/><text x="85" y="88" text-anchor="middle">Session starts</text><text class="small" x="85" y="106" text-anchor="middle">new, resume, clear, compact</text>
+  <path class="arr" d="M160 92H200"/>
+  <rect class="box" x="200" y="60" width="170" height="64" rx="6"/><text x="285" y="88" text-anchor="middle">Tool runs the hook</text><text class="small" x="285" y="106" text-anchor="middle">hooks/hooks.json</text>
+  <path class="arr" d="M370 92H410"/>
+  <rect class="box hl" x="410" y="60" width="180" height="64" rx="6"/><text x="500" y="88" text-anchor="middle">Hook script</text><text class="small" x="500" y="106" text-anchor="middle">override file present?</text>
+  <path class="arr" d="M590 78C620 60 630 44 660 40"/><text class="small" x="606" y="48">yes</text>
+  <path class="arr" d="M590 106C620 124 630 142 660 146"/><text class="small" x="606" y="146">no</text>
+  <rect class="box" x="660" y="10" width="170" height="56" rx="6"/><text x="745" y="34" text-anchor="middle">Print override</text><text class="small" x="745" y="52" text-anchor="middle">~/.config/html-documents/rule.md</text>
+  <rect class="box" x="660" y="120" width="170" height="56" rx="6"/><text x="745" y="144" text-anchor="middle">Print plugin rule</text><text class="small" x="745" y="162" text-anchor="middle">html-output-rule.md</text>
+  <path class="arr" d="M830 40C860 44 870 70 880 82"/><path class="arr" d="M830 146C860 142 870 114 880 102"/>
+  <rect class="box" x="880" y="60" width="90" height="64" rx="6"/><text x="925" y="88" text-anchor="middle">Session</text><text class="small" x="925" y="106" text-anchor="middle">instructions</text>
+</svg>
+<figcaption>The hook prints plain text to standard output. Both tools add a session-start hook's standard output to the session's context, so the script does not build JSON.</figcaption>
+</figure>
+
+<h2 id="approaches">Approaches considered</h2>
+<p>A plugin can carry skills and hooks but has no place for always-on instruction text, so the question was how the rule gets into each session.</p>
+<div class="cols">
+  <div class="card picked"><h3>A. Hook prints the rule <span class="tag yours">picked by Nathan</span></h3>
+    <p>A session-start hook prints the rule from a file in the plugin, or from the user's override file.</p>
+    <ul><li>Rule changes reach users with plugin updates</li><li>Uninstall is removing the plugin</li><li>Costs: Codex trust step; not eligible for Codex's public directory; needs a script that runs on three operating systems; a user who already pasted the rule has it twice</li></ul>
+    <p><strong>Why:</strong> it is the only option that delivers rule updates, which is one of the three stated goals.</p></div>
+  <div class="card"><h3>B. Plugin ships a setup skill</h3>
+    <p>The plugin holds the skill plus a <code>setup</code> skill that runs the <code>PROMPT.md</code> interview and writes the rule into the user's files.</p>
+    <ul><li>Keeps all four install methods and the wording questions</li><li>Eligible for public directories; no hook</li><li>Cost: the pasted rule never updates; uninstall means editing files</li></ul></div>
+  <div class="card"><h3>C. Both</h3>
+    <p>Hook by default, setup skill for people who want the rule in their own files.</p>
+    <ul><li>Covers every preference</li><li>Cost: two paths to build, document, and support; a user can end up with both active</li></ul></div>
+</div>
+
+<h2 id="files">Files</h2>
+<div class="scroll"><table>
+<tr><th>Path</th><th></th><th>Purpose</th></tr>
+<tr><td><code>.claude-plugin/plugin.json</code></td><td><span class="tag new">new</span></td><td>Claude Code plugin manifest. <code>name: "html-output"</code>, description, author, repository, license, keywords. No <code>version</code> field (see decisions).</td></tr>
+<tr><td><code>.claude-plugin/marketplace.json</code></td><td><span class="tag new">new</span></td><td>Marketplace named <code>nathanphelps</code> with one entry: <code>html-output</code>, <code>"source": "./"</code>. No <code>version</code>, no component fields.</td></tr>
+<tr><td><code>.codex-plugin/plugin.json</code></td><td><span class="tag new">new</span></td><td>Codex manifest: same name and description, <code>"skills": "./skills/"</code>, hooks reference, and an <code>interface</code> block (display name, short and long description, category, website URL).</td></tr>
+<tr><td><code>.agents/plugins/marketplace.json</code></td><td><span class="tag new">new</span></td><td>Codex marketplace file, same marketplace name and one entry with the <code>policy</code> and <code>category</code> fields Codex requires. Dropped if testing shows Codex works from the Claude marketplace file alone and the two conflict.</td></tr>
+<tr><td><code>hooks/hooks.json</code></td><td><span class="tag new">new</span></td><td>One <code>SessionStart</code> entry with no matcher, running the hook script by its path under <code>${CLAUDE_PLUGIN_ROOT}</code>. Codex sets that variable too.</td></tr>
+<tr><td><code>hooks/print-rule.cmd</code> (name is the builder's choice)</td><td><span class="tag new">new</span></td><td>The hook script. Prints the override file if present and not empty, otherwise <code>html-output-rule.md</code> from the plugin root. Exits 0 in every case.</td></tr>
+<tr><td><code>html-output-rule.md</code></td><td><span class="tag same">unchanged</span></td><td>Stays at the repo root as the one source of the rule text. The hook reads it; by-hand installs copy it.</td></tr>
+<tr><td><code>skills/html-documents/SKILL.md</code></td><td><span class="tag same">unchanged</span></td><td>Already in the folder both tools scan. In Claude Code it appears as <code>html-output:html-documents</code>.</td></tr>
+<tr><td><code>PROMPT.md</code></td><td><span class="tag same">unchanged</span></td><td>Remains the route for people who do not want a plugin. Its embedded rule copy is checked against <code>html-output-rule.md</code> in CI.</td></tr>
+<tr><td><code>README.md</code></td><td><span class="tag changed">changed</span></td><td>Install section leads with the plugin for each tool; the prompt and by-hand routes move under "Without the plugin". New short sections: updating, changing the rule with the override file, "if you already pasted the rule, remove that copy". Uninstall and Files table updated. "Optional skill" notes the plugin includes it.</td></tr>
+<tr><td><code>CONTRIBUTING.md</code></td><td><span class="tag new">new</span></td><td>How to test a change locally on each tool, what CI checks, the instruction to keep the rule short, and that every merge to <code>main</code> ships to Claude Code users.</td></tr>
+<tr><td><code>.github/workflows/check.yml</code></td><td><span class="tag new">new</span></td><td>CI on pull requests and <code>main</code>. See checks below.</td></tr>
+<tr><td><code>tests/</code> hook test script(s)</td><td><span class="tag new">new</span></td><td>Runs the hook with and without an override file and compares output to the expected text. Used by CI on all three operating systems.</td></tr>
+</table></div>
+
+<h2 id="behavior">Behavior of the hook</h2>
+<ul>
+  <li><strong>Runs on every session-start source</strong> (new session, resume, clear, compact). After a compaction the earlier instructions may be summarized away, so the rule is printed again.</li>
+  <li><strong>Output</strong> is the rule file's text exactly, starting with its <code># Document format</code> heading, and nothing else.</li>
+  <li><strong>Override path</strong> is <code>$HOME/.config/html-documents/rule.md</code> on macOS and Linux and <code>%USERPROFILE%\.config\html-documents\rule.md</code> on Windows. An empty or whitespace-only file counts as absent.</li>
+  <li><strong>No dependency on Node, Python, or Git Bash.</strong> Claude Code runs hook commands under Git Bash on Windows when it is installed and under PowerShell otherwise; Codex's Windows behavior is not documented. The script has to work in each case. A single file that is valid both as a Windows batch file and as a POSIX shell script (the pattern Superpowers uses in <code>hooks/run-hook.cmd</code>) meets this with <code>type</code> on Windows and <code>cat</code> elsewhere.</li>
+  <li><strong>Failure is silent.</strong> If neither file can be read, the script prints nothing and exits 0. A session without the rule is better than a session that starts with an error.</li>
+  <li><strong>Size.</strong> Claude Code caps hook output at 10,000 characters. The rule is about 1,600. The README states the cap for override files.</li>
+</ul>
+
+<h2 id="calls">Decisions and my calls</h2>
+<div class="scroll"><table>
+<tr><th>Decision</th><th>Who</th><th>Reason</th></tr>
+<tr><td>Approach A, hook with one override file; <code>PROMPT.md</code> kept as the no-plugin route</td><td><span class="tag yours">Nathan</span></td><td>Chosen in conversation</td></tr>
+<tr><td>The build happens on a branch, which is pushed to GitHub so CI can run. It is handed over unmerged; Nathan merges</td><td><span class="tag yours">Nathan</span></td><td>CI is the only evidence for macOS and Linux, and a merge to <code>main</code> ships to users</td></tr>
+<tr><td>The rule reaches the main session only, not subagents. One <code>SessionStart</code> entry, no subagent hook</td><td><span class="tag yours">Nathan</span></td><td>Subagents report to the main agent, which writes the documents the person reads. The README states this difference from a paste install, where most subagents also load the rule</td></tr>
+<tr><td>Nathan performs the Codex <code>/hooks</code> trust step during testing</td><td><span class="tag yours">Nathan</span></td><td>The step is interactive and an agent cannot do it</td></tr>
+<tr><td>Plugin lives at the repo root; the same repo is the marketplace</td><td><span class="tag mine">my call</span></td><td>No files move, existing links and the raw URL in <code>PROMPT.md</code> keep working</td></tr>
+<tr><td>Plugin name <code>html-output</code>, marketplace name <code>nathanphelps</code></td><td><span class="tag mine">my call</span></td><td>The install id reads <code>html-output@nathanphelps</code>, and the marketplace name leaves room for other plugins later. Names starting with <code>claude-</code> or <code>cc-plugin-</code> are rejected by Claude Code. Easy to change before release, awkward after</td></tr>
+<tr><td>No <code>version</code> field in the Claude Code manifests</td><td><span class="tag mine">my call</span></td><td>Claude Code then uses the commit as the version, so every merge to <code>main</code> is an update and contributors never bump a number. With a version field, commits pushed without a bump do not reach users. Consequence: unfinished work must stay off <code>main</code></td></tr>
+<tr><td>Codex manifest carries a <code>version</code>, starting at <code>0.1.0</code></td><td><span class="tag mine">my call</span></td><td>Codex's install cache is keyed by version. Whether an upgrade needs the number to change is untested; see unverified facts</td></tr>
+<tr><td>Override at <code>~/.config/html-documents/rule.md</code>, whole-file replacement</td><td><span class="tag mine">my call</span></td><td>One path for both tools, outside either tool's folder so it survives plugin updates and removal. Whole-file replacement needs no merging logic. Cost: a user with an override stops receiving rule updates, which the README states</td></tr>
+<tr><td>Plain text output from the hook, not JSON</td><td><span class="tag mine">my call</span></td><td>Both tools accept it, and it removes JSON escaping from a script that must run without Bash on Windows</td></tr>
+<tr><td>No duplicate detection</td><td><span class="tag mine">my call</span></td><td>Reading and parsing the user's instruction files from a hook adds risk for a case one README sentence covers</td></tr>
+<tr><td>Acceptance test is that a fresh session can quote the rule text, not a measurement of how often agents obey it</td><td><span class="tag mine">my call</span></td><td>This machine already has the rule pasted globally, so a behavior test here cannot separate the plugin's effect. The hook prints the rule text only, with no added framing sentence. If hook-delivered text turns out to be followed less reliably than pasted text, that comes back to Nathan as a new decision</td></tr>
+<tr><td>CI plus a small hook test; no other test files</td><td><span class="tag mine">my call</span></td><td>The hook is the only executable code and must work on three systems</td></tr>
+</table></div>
+
+<h2 id="verify">Checks</h2>
+<h3>CI (<code>.github/workflows/check.yml</code>)</h3>
+<ul>
+  <li>Every manifest and hooks file parses as JSON.</li>
+  <li>The text between <code>&lt;!-- rule:start --&gt;</code> and <code>&lt;!-- rule:end --&gt;</code> in <code>PROMPT.md</code> equals <code>html-output-rule.md</code>.</li>
+  <li>The hook test passes on Ubuntu, macOS, and Windows runners. On Windows it runs the script through <code>cmd.exe</code>, through PowerShell, and through Git Bash.</li>
+  <li><code>claude plugin validate . --strict</code> if it can run in CI without signing in; otherwise it is a documented local step in <code>CONTRIBUTING.md</code>.</li>
+</ul>
+<h3>Manual, on this machine before release (both tools are installed here)</h3>
+<div class="note">This machine already has the rule pasted in <code>~/.codex/AGENTS.md</code>, imported by <code>~/.claude/CLAUDE.md</code>. A "quote your Document format instruction" test would pass without the plugin. Test with an override file that contains a marker sentence, and check for the marker. Do not edit the global instruction files.</div>
+<ol>
+  <li>Claude Code: add the marketplace from the local path, install, run <code>claude -p</code> asking it to quote the marker sentence. Confirm the skill is listed. Run <code>claude plugin validate .</code>.</li>
+  <li>Codex: add the marketplace, <code>codex plugin add</code>, trust the hook, run <code>codex exec --skip-git-repo-check</code> with the same question. Confirm the skill is listed.</li>
+  <li>Remove the override; confirm the default rule is what arrives (compare against a temporary edit of the plugin's rule file with a marker, then revert).</li>
+  <li>Uninstall on both tools and confirm nothing remains except the override folder, which the README says to delete by hand.</li>
+</ol>
+
+<h2 id="open">Unverified facts the build must settle</h2>
+<div class="scroll"><table>
+<tr><th>Question</th><th>What is known</th><th>If the answer is unfavourable</th></tr>
+<tr><td>Does plain standard output from a session-start hook enter the context on Codex? Test this first.</td><td>Read in Codex's hooks documentation, and only from a summarized part of the page. Not observed. Confirmed in documentation for Claude Code</td><td>The script emits JSON (<code>hookSpecificOutput.additionalContext</code>) on Codex. The Windows half then calls PowerShell, which every Windows install has, and uses <code>ConvertTo-Json</code> for escaping; the POSIX half escapes with shell parameter substitution as Superpowers' <code>hooks/session-start</code> does. Hook delivery on Codex is not dropped</td></tr>
+<tr><td>Does Codex ask for trust again when only <code>html-output-rule.md</code> changes?</td><td>Codex docs: trust is tied to the hook definition's hash. Unclear whether a new install path after an upgrade changes that hash</td><td>Document in the README that Codex users re-trust after an upgrade</td></tr>
+<tr><td>Does <code>codex plugin marketplace upgrade</code> pick up new commits when the Codex manifest's version is unchanged?</td><td>Not documented</td><td>Add "bump <code>.codex-plugin/plugin.json</code> version" to <code>CONTRIBUTING.md</code> and a CI check that it changed when shipped files changed</td></tr>
+<tr><td>Does <code>codex plugin add html-output@nathanphelps</code> work from the CLI?</td><td>The command exists in Codex 0.169.0 here; OpenAI's docs describe install through the desktop app only</td><td>README gives the desktop app steps as well</td></tr>
+<tr><td>Does Codex need its own hooks file using <code>${PLUGIN_ROOT}</code>?</td><td>This machine's Codex config shows it running <code>hooks/hooks.json</code> from Claude Code plugins that use <code>${CLAUDE_PLUGIN_ROOT}</code></td><td>Add <code>hooks/hooks.codex.json</code> and point the Codex manifest at it, as the Remember plugin does</td></tr>
+<tr><td>Which marketplace file does Codex read when both exist?</td><td>Docs say it can read either</td><td>Keep only the one that works for both</td></tr>
+<tr><td>How does Codex run a hook command on Windows?</td><td>Docs mention a Windows command override field but not the default shell</td><td>Use that override field for the Windows command</td></tr>
+</table></div>
+
+<h2 id="builder">Left to the builder</h2>
+<ul>
+  <li>The hook script's name and exact implementation, within the behavior above.</li>
+  <li>Description, keyword, and <code>interface</code> text in the manifests, taken from the README's first paragraph.</li>
+  <li>The layout of the test script(s) and the CI workflow.</li>
+  <li>Wording and order of the README changes, in the README's existing plain style, and written to the standard in the repo owner's writing instructions (literal statements, no figurative phrasing).</li>
+  <li>Whether <code>.agents/plugins/marketplace.json</code> and a Codex-specific hooks file are needed, decided by the tests in the table above.</li>
+</ul>
+<p>Allowed: creating a feature branch, committing to it, and pushing it to <code>origin</code> so CI runs. Not in scope without asking: committing to or merging into <code>main</code>, opening a pull request, tagging a release, renaming the repository, or editing the user's global instruction files.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,2 @@
+hooks/print-rule.cmd text eol=lf
+tests/*.sh text eol=lf

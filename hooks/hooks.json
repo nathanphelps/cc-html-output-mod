@@ -1,0 +1,17 @@
+{
+  "description": "Prints the HTML document rule at session start",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/print-rule.cmd\"",
+            "powershell": "& \"${CLAUDE_PLUGIN_ROOT}/hooks/print-rule.cmd\"",
+            "shell": "bash"
+          }
+        ]
+      }
+    ]
+  }
+}
