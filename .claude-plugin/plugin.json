@@ -1,0 +1,9 @@
+{
+  "name": "html-output",
+  "description": "Makes Claude Code and Codex write plans, specs, reports, and other documents meant for you as HTML files instead of Markdown.",
+  "author": { "name": "Nathan Phelps", "url": "https://github.com/nathanphelps" },
+  "homepage": "https://github.com/nathanphelps/cc-html-output-mod",
+  "repository": "https://github.com/nathanphelps/cc-html-output-mod",
+  "license": "MIT",
+  "keywords": ["html", "documents", "plans", "specs", "output-format"]
+}

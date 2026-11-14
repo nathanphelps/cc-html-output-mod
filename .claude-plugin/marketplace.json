@@ -1,0 +1,12 @@
+{
+  "name": "nathanphelps",
+  "description": "Plugins by Nathan Phelps",
+  "owner": { "name": "Nathan Phelps", "url": "https://github.com/nathanphelps" },
+  "plugins": [
+    {
+      "name": "html-output",
+      "source": "./",
+      "description": "Makes Claude Code and Codex write plans, specs, reports, and other documents meant for you as HTML files instead of Markdown."
+    }
+  ]
+}
