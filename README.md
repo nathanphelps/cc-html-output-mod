@@ -1,6 +1,6 @@
 # cc-html-output-mod
 
-A short standing instruction for Claude Code and Codex that makes them write documents meant for you (plans, specs, reports, handoffs, and similar) as self-contained HTML files instead of Markdown, plus a prompt that installs it for you.
+A short standing instruction for Claude Code and Codex that makes them write documents meant for you (plans, specs, reports, handoffs, and similar) as self-contained HTML files instead of Markdown. Install it as a plugin, or with a prompt that writes it into your instruction files.
 
 ## The problem it addresses
 
@@ -66,14 +66,50 @@ To see the pages themselves, clone the repository and open the two `.html` files
 
 ## Install
 
-### With the prompt
+### As a plugin
+
+This repository is a plugin for Claude Code and for Codex, and it is also the marketplace the plugin installs from. The plugin contains the rule and the skill described under [Optional skill](#optional-skill), so there is nothing else to install. A hook prints the rule into each session when the session starts. Your `CLAUDE.md` and `AGENTS.md` files are not changed.
+
+**Claude Code**
+
+```
+claude plugin marketplace add nathanphelps/cc-html-output-mod
+claude plugin install html-output@nathanphelps
+```
+
+Start a new session and ask for a plan for a small feature.
+
+Claude Code does not update plugins from this marketplace on its own unless you turn that on: run `/plugin`, open Marketplaces, select `nathanphelps`, and select Enable auto-update. To update by hand, run `claude plugin update html-output@nathanphelps`.
+
+**Codex**
+
+```
+codex plugin marketplace add nathanphelps/cc-html-output-mod
+codex plugin add html-output@nathanphelps
+```
+
+Then open a Codex session, run `/hooks`, and trust the plugin's hook. Codex does not run a plugin's hooks until you have reviewed and trusted them, so the rule is not active before this step.
+
+To update, run `codex plugin marketplace upgrade nathanphelps`.
+
+**Three things to know**
+
+- If you already pasted the rule into `CLAUDE.md` or `AGENTS.md`, remove that copy. Otherwise the agent receives the rule twice.
+- The plugin gives the rule to the main session. Subagents do not receive it. With a rule pasted into an instruction file, most subagents do.
+- To change the rule's wording, see [Changing the rule](#changing-the-rule).
+
+### Without the plugin
+
+The routes below write the rule into your own instruction files. Use them if you do not want a plugin, want the rule in one project only, or want subagents to receive it.
+
+#### With the prompt
 
 1. Open [`PROMPT.md`](PROMPT.md) and copy the whole file.
 2. Paste it into a Claude Code or Codex session.
 
 The agent reads your existing user-level instruction files, tells you what it found, and asks four things: which tools to install for, which install method to use, whether you want to change the wording (including whether documents may load libraries from the internet), and whether you want the optional skill. It backs up every file before changing it, verifies the result in a fresh session, and tells you how to undo it.
 
-### Install methods
+#### Install methods
 
 The prompt describes these and asks you to choose. None is the default.
 
@@ -88,7 +124,7 @@ One fact limits the choices: Claude Code expands `@path` imports inside `CLAUDE.
 
 Methods 2 and 3 can rely on an `@` import. Some Claude environments, such as Cowork sessions in the desktop app, skip user-level imports that point outside the working folder, so the rule does not load there.
 
-### By hand
+#### By hand
 
 These steps are method 1 from the table above.
 
@@ -98,7 +134,7 @@ These steps are method 1 from the table above.
 
 ## Offline files or CDN libraries
 
-The install prompt asks you to pick one. If you install by hand, the rule text in `html-output-rule.md` is the offline version.
+The install prompt asks you to pick one. If you install the plugin or install by hand, the rule text in `html-output-rule.md` is the offline version.
 
 | | Offline only | CDN libraries allowed |
 |---|---|---|
@@ -113,11 +149,20 @@ To allow CDN libraries by hand, replace the first sentence of the rule's third p
 
 > Each HTML document is one file with its own CSS and JavaScript embedded and plain semantic markup so a later agent can read and edit it. Well-known libraries may be loaded from a CDN when they help, such as Mermaid for diagrams, Reveal.js for slides, an icon set, or web fonts; pin exact versions.
 
+With the plugin, make this replacement in your own copy of the rule, as described under [Changing the rule](#changing-the-rule).
+
 The example files in this repository are the offline kind.
 
 ## Changing the rule
 
 The rule is three paragraphs of plain text. Edit it to suit you: remove document types you still want as Markdown, add exceptions, change the "about one screen" threshold, or drop the line about opening the browser.
+
+Where you edit it depends on how you installed it. If you pasted the rule into an instruction file, edit it there. If you installed the plugin, copy [`html-output-rule.md`](html-output-rule.md) to `~/.config/html-documents/rule.md` and edit the copy. On Windows that path is `%USERPROFILE%\.config\html-documents\rule.md`. When this file exists, the plugin prints it in place of its own rule:
+
+- The file replaces the plugin's rule entirely. Nothing is merged.
+- While the file exists, changes to the rule that arrive with plugin updates do not reach you. Delete the file to go back to the plugin's rule.
+- An empty file is ignored.
+- Keep it under 10,000 characters. Claude Code cuts off hook output that is longer.
 
 Keep it short. The source episode makes the point that long, prescriptive instructions tend to produce worse results than naming what you care about and leaving the rest to the agent, and the rule is written that way on purpose.
 
@@ -139,9 +184,9 @@ The rule decides when an agent writes HTML and is loaded into every session. The
 - **Throwaway editors:** a single-file page for editing one structured section of a document, with a button that exports the result in the original format
 - **A design system page:** one `design_system.html` per project, extracted from the existing code, for people and agents to refer to
 
-The rule works without the skill. Install the skill if you want more consistent results on those three jobs.
+The plugin includes the skill. If you installed without the plugin, the rule works without the skill, and you can add the skill if you want more consistent results on those three jobs.
 
-To install it, copy the `html-documents` folder into the skills folder of each tool you use:
+To install it without the plugin, copy the `html-documents` folder into the skills folder of each tool you use:
 
 - Claude Code: `~/.claude/skills/html-documents/SKILL.md`
 - Codex: `~/.agents/skills/html-documents/SKILL.md`, the folder Codex's documentation names. Codex 0.167.2 was also observed loading skills from `~/.codex/skills/`
@@ -154,9 +199,17 @@ The skill is written for this repository. The practices it describes come from t
 - **Harder to edit by hand.** In practice you ask the agent to make changes, or use a throwaway editor page for structured sections.
 - **A well-designed page can make weak reasoning look finished.** The format helps you read the plan. Checking whether the plan is right is still your job.
 - **It is an instruction, not an enforcement mechanism.** Agents follow it most of the time. If one writes Markdown anyway, ask it to redo the document as HTML.
+- **The plugin delivers the rule as hook output.** A pasted rule is part of your instruction file; the plugin's rule arrives as the output of a session-start hook. This project has not measured whether agents follow one more reliably than the other.
 - **Code hosts show `.html` files as source.** That is why READMEs and additions to existing Markdown documentation are excluded.
 
 ## Uninstall
+
+If you installed the plugin, remove it and the marketplace:
+
+- **Claude Code:** `claude plugin uninstall html-output@nathanphelps`, then `claude plugin marketplace remove nathanphelps`
+- **Codex:** `codex plugin remove html-output@nathanphelps`, then `codex plugin marketplace remove nathanphelps`
+
+If you made your own copy of the rule, also delete the `~/.config/html-documents` folder.
 
 If you used the prompt, it made a `.bak-YYYYMMDD` backup of every file it changed. Restoring a backup undoes the install for that file, and also removes any edits you made to the file afterwards. To uninstall without the backups:
 
@@ -165,16 +218,21 @@ If you used the prompt, it made a `.bak-YYYYMMDD` backup of every file it change
 - **Method 3:** delete the standalone rule file, remove its `@` import line from `CLAUDE.md` if you added one, and delete the section from `AGENTS.md` if you use Codex.
 - **Method 4:** delete the section from the repository's instruction file.
 
-If you installed the skill, delete the `html-documents` folder from each skills folder.
+If you installed the skill by copying it, delete the `html-documents` folder from each skills folder.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| [`PROMPT.md`](PROMPT.md) | Paste into Claude Code or Codex to install the rule with your choice of method |
-| [`html-output-rule.md`](html-output-rule.md) | The rule text alone, for installing by hand |
-| [`skills/html-documents/SKILL.md`](skills/html-documents/SKILL.md) | Optional skill with detailed instructions for review documents, throwaway editors, and a design system page |
+| [`html-output-rule.md`](html-output-rule.md) | The rule text. The plugin's hook prints it, and it is the text to copy when installing by hand |
+| [`hooks/`](hooks) | The session-start hook and the script it runs, which prints the rule or your own copy of it |
+| [`skills/html-documents/SKILL.md`](skills/html-documents/SKILL.md) | Skill with detailed instructions for review documents, throwaway editors, and a design system page |
+| [`.claude-plugin/`](.claude-plugin) | Plugin and marketplace manifests for Claude Code |
+| [`.codex-plugin/`](.codex-plugin) and [`.agents/plugins/`](.agents/plugins) | Plugin and marketplace manifests for Codex |
+| [`PROMPT.md`](PROMPT.md) | Paste into Claude Code or Codex to install the rule without the plugin, with your choice of method |
 | [`examples/`](examples) | Two documents as Markdown and as HTML, with screenshots |
+| [`tests/`](tests) | Checks for the hook script and for the rule copy in `PROMPT.md` |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to test and send a change |
 
 ## License
 
